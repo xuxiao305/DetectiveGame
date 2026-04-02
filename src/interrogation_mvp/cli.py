@@ -2,8 +2,34 @@
 
 from __future__ import annotations
 
+import logging
+import os
+from pathlib import Path
+import time
+
 from .controller import GameController
 from .models import SessionStatus
+
+
+def _typewriter_delay_seconds() -> float:
+    raw = os.getenv("INTERROGATION_TYPEWRITER_DELAY_MS", "40").strip()
+    try:
+        delay_ms = float(raw)
+    except ValueError:
+        delay_ms = 40.0
+    if delay_ms <= 0:
+        return 0.0
+    return delay_ms / 1000.0
+
+
+def _print_with_typewriter(text: str, delay_seconds: float) -> None:
+    if delay_seconds <= 0:
+        print(text)
+        return
+    for ch in text:
+        print(ch, end="", flush=True)
+        time.sleep(delay_seconds)
+    print()
 
 
 def _print_case_intro(state) -> None:
@@ -19,17 +45,43 @@ def _print_case_intro(state) -> None:
 
 def _print_turn(result) -> None:
     turn = result.turn
+    delay_seconds = _typewriter_delay_seconds()
     print(f"\n--- 第 {turn.round_index} 回合 ---")
     print(f"侦探内心：{turn.detective_thought}")
-    print(f"侦探发问：{turn.detective_question}")
+    source_d = f" ({turn.detective_source})" if turn.detective_source else ""
+    print(f"侦探发问{source_d}：", end="")
+    _print_with_typewriter(turn.detective_question, delay_seconds)
     print(f"嫌疑人内心：{turn.suspect_thought}")
-    print(f"嫌疑人回答：{turn.suspect_answer}")
+    source_s = f" ({turn.suspect_source})" if turn.suspect_source else ""
+    print(f"嫌疑人回答{source_s}：", end="")
+    _print_with_typewriter(turn.suspect_answer, delay_seconds)
     if result.new_contradiction_descriptions:
         for desc in result.new_contradiction_descriptions:
             print(f"⚠️ 矛盾点：{desc}")
 
 
+def _configure_logging() -> None:
+    level_name = os.getenv("INTERROGATION_LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+
+    log_file = os.getenv("INTERROGATION_LOG_FILE", "").strip()
+    if log_file:
+        log_path = Path(log_file)
+        if not log_path.is_absolute():
+            log_path = Path.cwd() / log_path
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        handlers.append(logging.FileHandler(log_path, encoding="utf-8"))
+
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)s %(name)s - %(message)s",
+        handlers=handlers,
+    )
+
+
 def run_cli() -> None:
+    _configure_logging()
     controller = GameController()
     state = controller.start_session()
     _print_case_intro(state)

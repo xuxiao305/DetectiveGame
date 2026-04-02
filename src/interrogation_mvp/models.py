@@ -42,6 +42,8 @@ class DialogueTurn:
     suspect_answer: str
     injected_evidence_id: Optional[str] = None
     new_contradictions: List[str] = field(default_factory=list)
+    detective_source: str = ""
+    suspect_source: str = ""
 
 
 @dataclass
