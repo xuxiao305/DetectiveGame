@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 
@@ -33,6 +34,9 @@ class ModelConfig:
     local_max_tokens: int = 1024
     local_num_ctx: int = 8192
     local_temperature: float = 0.2
+    anthropic_model_name: str = "claude-sonnet-4-6"
+    anthropic_temperature: float = 0.2
+    anthropic_max_tokens: int = 512
     anthropic_base_url_env: str = "ANTHROPIC_BASE_URL"
     anthropic_auth_token_env: str = "ANTHROPIC_AUTH_TOKEN"
     bytedance_api_key_env: str = "ByteDance_API_Key"
@@ -53,4 +57,16 @@ class AppConfig:
 
 
 def default_config() -> AppConfig:
+    provider_override = os.getenv("INTERROGATION_PROVIDER", "").strip()
+    model_override = os.getenv("INTERROGATION_MODEL_NAME", "").strip()
+    if provider_override:
+        model_kwargs: dict = {"provider": provider_override}
+        if model_override:
+            if provider_override == "anthropic_compatible":
+                model_kwargs["anthropic_model_name"] = model_override
+            elif provider_override == "local_openai_compatible":
+                model_kwargs["local_model_name"] = model_override
+            else:
+                model_kwargs["model_name"] = model_override
+        return AppConfig(model=ModelConfig(**model_kwargs))
     return AppConfig()

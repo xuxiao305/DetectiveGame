@@ -7,6 +7,7 @@ import logging
 from time import perf_counter
 from typing import List
 
+from .claim_extractor import ClaimExtractor
 from .contradiction import ContradictionDetector
 from .evidence import EvidenceInjectionHandler, find_evidence_text
 from .guardrails import TurnGuard
@@ -38,6 +39,7 @@ class TurnOrchestrator:
         self._gateway = gateway
         self._evidence_handler = evidence_handler
         self._detector = detector
+        self._claim_extractor = ClaimExtractor()
         self._guard = guard
         self._generation_options = generation_options
 
@@ -111,6 +113,39 @@ class TurnOrchestrator:
         state.turns.append(turn)
         state.round_index = next_round
 
+        # ── 更新角色记忆（两个角色的记忆存不同维度的信息）──
+        claim_text = turn.suspect_answer.strip()
+        if claim_text:
+            extracted = self._claim_extractor.extract_key_claims(claim_text, max_chars=80)
+
+            # 嫌疑人记忆：记录自己说过的话，用于保持说辞一致
+            state.suspect_memory.recent_claims.append(f"R{next_round}: {extracted}")
+            if len(state.suspect_memory.recent_claims) > 10:
+                state.suspect_memory.recent_claims = state.suspect_memory.recent_claims[-10:]
+
+            # 侦探记忆：记录侦探视角的发现——有矛盾则记矛盾，无矛盾则记疑点
+            if new_contradictions:
+                for item in new_contradictions:
+                    state.detective_memory.recent_claims.append(
+                        f"R{next_round} 矛盾[{item.severity}]: {item.description[:60]}"
+                    )
+            else:
+                state.detective_memory.recent_claims.append(
+                    f"R{next_round} 疑点待深挖: {extracted}"
+                )
+            if len(state.detective_memory.recent_claims) > 10:
+                state.detective_memory.recent_claims = state.detective_memory.recent_claims[-10:]
+
+        # 嫌疑人心理压力梯度（仅在 Dream 模式尚未生成摘要时作为兜底）
+        if not state.suspect_memory.summary:
+            contradiction_count = len(state.contradictions)
+            if contradiction_count == 0:
+                state.suspect_memory.summary = "坚决否认，维持不在场说法。"
+            elif contradiction_count <= 2:
+                state.suspect_memory.summary = "说辞出现漏洞，需要小心应对，可以局部松口但不能认罪。"
+            else:
+                state.suspect_memory.summary = "多处矛盾被揭穿，防线即将崩溃，考虑换一种辩解方式。"
+
         if state.round_index >= state.round_limit_hard:
             state.status = SessionStatus.HARD_LIMIT
         elif state.round_index >= state.round_limit_soft:
@@ -139,3 +174,28 @@ class TurnOrchestrator:
                 for item in new_contradictions
             ],
         )
+
+    def maybe_consolidate(self, state: GameState, every: int = 3) -> None:
+        """Dream 模式：每隔 every 轮，让两个角色 AI 各自更新自己的记忆摘要。
+        调用失败时静默跳过，不影响主流程。"""
+        if state.round_index == 0 or state.round_index % every != 0:
+            return
+        LOGGER.info("dream_consolidate round=%s", state.round_index)
+        # 嫌疑人自我整理：我承诺过什么，我现在的处境
+        suspect_summary = self._gateway.generate_summary(
+            "suspect",
+            state.suspect_memory.recent_claims,
+            self._generation_options,
+        )
+        if suspect_summary:
+            state.suspect_memory.summary = suspect_summary
+            LOGGER.info("dream_suspect_summary updated: %s", suspect_summary[:60])
+        # 侦探自我整理：我发现了什么漏洞，下一步怎么施压
+        detective_summary = self._gateway.generate_summary(
+            "detective",
+            state.detective_memory.recent_claims,
+            self._generation_options,
+        )
+        if detective_summary:
+            state.detective_memory.summary = detective_summary
+            LOGGER.info("dream_detective_summary updated: %s", detective_summary[:60])

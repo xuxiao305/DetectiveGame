@@ -1,0 +1,49 @@
+# Local runtime data
+/data/
+
+# Local Python environments
+/.venv/
+/venv/
+/env/
+/ENV/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build and packaging artifacts
+/build/
+/dist/
+/*.egg-info/
+.eggs/
+*.egg
+
+# Test, coverage, and type-checker caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.pyre/
+.ruff_cache/
+.hypothesis/
+
+# Logs and local runtime files
+*.log
+*.pid
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local environment overrides
+.env
+.env.*
+!.env.example
+
+# images
+images/
+
+*.pyc
+*.txt
+*test/*

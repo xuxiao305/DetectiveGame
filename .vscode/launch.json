@@ -1,0 +1,49 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "GUI - Local Deepseek",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.interrogation_mvp.gui",
+            "cwd": "${workspaceFolder:InterrogationRoom}",
+            "env": {
+                "INTERROGATION_LOG_LEVEL": "INFO"
+            }
+        },
+        {
+            "name": "GUI - Claude (Anthropic)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.interrogation_mvp.gui",
+            "cwd": "${workspaceFolder:InterrogationRoom}",
+            "env": {
+                "INTERROGATION_PROVIDER": "anthropic_compatible",
+                "INTERROGATION_LOG_LEVEL": "INFO"
+            }
+        },
+        {
+            "name": "CLI - Claude (Anthropic)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.interrogation_mvp.cli",
+            "cwd": "${workspaceFolder:InterrogationRoom}",
+            "console": "integratedTerminal",
+            "env": {
+                "INTERROGATION_PROVIDER": "anthropic_compatible",
+                "INTERROGATION_LOG_LEVEL": "INFO"
+            }
+        },
+        {
+            "name": "CLI - Local Deepseek",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.interrogation_mvp.cli",
+            "cwd": "${workspaceFolder:InterrogationRoom}",
+            "console": "integratedTerminal",
+            "env": {
+                "INTERROGATION_LOG_LEVEL": "INFO"
+            }
+        }
+    ]
+}

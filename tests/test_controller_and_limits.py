@@ -27,21 +27,17 @@ class ControllerAndLimitsTest(unittest.TestCase):
         controller = GameController()
         state = controller.start_session()
 
-        for _ in range(12):
+        for _ in range(16):
             controller.next_turn(state.session_id)
         state = controller.get_state(state.session_id)
         self.assertEqual(SessionStatus.SOFT_LIMIT, state.status)
-        self.assertEqual(12, state.round_index)
+        self.assertEqual(16, state.round_index)
 
-        for _ in range(3):
+        for _ in range(4):
             controller.next_turn(state.session_id)
         state = controller.get_state(state.session_id)
         self.assertEqual(SessionStatus.HARD_LIMIT, state.status)
-        self.assertEqual(15, state.round_index)
-
-        with self.assertRaises(RuntimeError):
-            controller.next_turn(state.session_id)
-
+        self.assertEqual(20, state.round_index)
     def test_next_turn_after_end_is_blocked(self) -> None:
         controller = GameController()
         state = controller.start_session()

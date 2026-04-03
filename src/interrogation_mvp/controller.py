@@ -55,6 +55,9 @@ class GameController:
                 local_max_tokens=self._config.model.local_max_tokens,
                 local_num_ctx=self._config.model.local_num_ctx,
                 local_temperature=self._config.model.local_temperature,
+                anthropic_model_name=self._config.model.anthropic_model_name,
+                anthropic_temperature=self._config.model.anthropic_temperature,
+                anthropic_max_tokens=self._config.model.anthropic_max_tokens,
                 anthropic_base_url_env=self._config.model.anthropic_base_url_env,
                 anthropic_auth_token_env=self._config.model.anthropic_auth_token_env,
                 bytedance_api_key_env=self._config.model.bytedance_api_key_env,
@@ -80,6 +83,7 @@ class GameController:
         if state.status == SessionStatus.HARD_LIMIT:
             raise RuntimeError("已达到硬上限，系统将结束会话。")
         result = self._orchestrator.run_turn(state)
+        self._orchestrator.maybe_consolidate(state)
         self._store.save_state(state)
         return result
 

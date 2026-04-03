@@ -31,12 +31,33 @@ _RUN_TS = datetime.now().strftime("%Y%m%d_%H%M%S")
 LOG_FILE = LOGS_DIR / f"session_{_RUN_TS}.log"
 
 
+_FILE_LOG_EXCLUDE_KEYWORDS: tuple[str, ...] = (
+    "【证据注入】",
+    "llm_provider_route",
+    "llm_request",
+    "llm_generate_success",
+    "turn_timing",
+)
+
+
+class _ExcludeMessageFilter(logging.Filter):
+    """Drop noisy operational lines from persisted log files."""
+
+    def __init__(self, excluded_keywords: tuple[str, ...]) -> None:
+        super().__init__()
+        self._excluded_keywords = excluded_keywords
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        return not any(keyword in message for keyword in self._excluded_keywords)
+
+
 def _setup_logging() -> None:
     fmt = "%(asctime)s %(levelname)s %(name)s - %(message)s"
-    handlers: list[logging.Handler] = [
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(LOG_FILE, encoding="utf-8"),
-    ]
+    stream_handler = logging.StreamHandler(sys.stdout)
+    file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+    file_handler.addFilter(_ExcludeMessageFilter(_FILE_LOG_EXCLUDE_KEYWORDS))
+    handlers: list[logging.Handler] = [stream_handler, file_handler]
     logging.basicConfig(level=logging.INFO, format=fmt, handlers=handlers)
 
 

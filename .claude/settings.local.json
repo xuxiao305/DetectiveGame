@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tests/ -q)",
+      "Bash(where python:*)",
+      "Bash(\"C:/Users/xuxiao02/AppData/Local/Programs/Python/Python312/python.exe\" -m pytest tests/ -q)",
+      "Bash(\"C:/Users/xuxiao02/AppData/Local/Programs/Python/Python312/python.exe\" -m pytest \"d:/AI/InterrogationRoom/tests/\" -q --timeout=20)",
+      "Bash(\"C:/Users/xuxiao02/AppData/Local/Programs/Python/Python312/python.exe\" -m pytest \"d:/AI/InterrogationRoom/tests/\" -q)",
+      "Bash(\"C:/Users/xuxiao02/AppData/Local/Programs/Python/Python312/python.exe\" -m pytest \"d:/AI/InterrogationRoom/tests/test_controller_and_limits.py\" \"d:/AI/InterrogationRoom/tests/test_llm_gateway.py\" -v)",
+      "Bash(C:/Users/xuxiao02/AppData/Local/Programs/Python/Python312/python.exe -c ':*)",
+      "Bash(INTERROGATION_PROVIDER=anthropic_compatible \"C:/Users/xuxiao02/AppData/Local/Programs/Python/Python312/python.exe\" scripts/auto_run.py)",
+      "Bash(ANTHROPIC_MODEL=claude-sonnet-4-6 \"C:/Users/xuxiao02/AppData/Local/Programs/Python/Python312/python.exe\" scripts/anthropic_connectivity_check.py)",
+      "Bash(INTERROGATION_PROVIDER=anthropic_compatible INTERROGATION_MODEL_NAME=claude-sonnet-4-6 \"C:/Users/xuxiao02/AppData/Local/Programs/Python/Python312/python.exe\" scripts/auto_run.py)"
+    ]
+  }
+}

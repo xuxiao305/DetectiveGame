@@ -46,7 +46,7 @@ class InterrogationGUI:
 
     def _build_ui(self) -> None:
         self._root.title("审讯室")
-        self._root.minsize(720, 620)
+        self._root.minsize(960, 720)
 
         # ── 标题栏 ────────────────────────────────────────────────────────
         self._title_var = tk.StringVar(value="审讯室")
@@ -66,30 +66,66 @@ class InterrogationGUI:
             info_frame,
             textvariable=self._info_var,
             justify=tk.LEFT,
-            wraplength=700,
+            wraplength=900,
             anchor="w",
         ).pack(fill=tk.X)
 
-        # ── 对话滚动区 ──────────────────────────────────────────────────
-        self._chat = ScrolledText(
-            self._root,
-            state=tk.DISABLED,
-            wrap=tk.WORD,
-            font=("Helvetica", 11),
-            height=18,
-        )
-        self._chat.pack(fill=tk.BOTH, expand=True, padx=10, pady=4)
+        # ── 双面板容器 ──────────────────────────────────────────────────
+        panels = tk.Frame(self._root)
+        panels.pack(fill=tk.BOTH, expand=True, padx=10, pady=4)
+        panels.columnconfigure(0, weight=1)
+        panels.columnconfigure(1, weight=1)
+        panels.rowconfigure(1, weight=3)  # 对话区占大比例
+        panels.rowconfigure(2, weight=0)  # 内心独白区
+        panels.rowconfigure(3, weight=1)  # 记忆区
 
-        # 颜色标签定义
-        self._chat.tag_config("thought",    foreground="#888888", font=("Helvetica", 9))
-        self._chat.tag_config("detective",  foreground="#1a5fa8", font=("Helvetica", 11, "bold"))
-        self._chat.tag_config("suspect",    foreground="#222222", font=("Helvetica", 11))
-        self._chat.tag_config("contradict", foreground="#cc0000", font=("Helvetica", 11, "bold"))
-        self._chat.tag_config("soft_limit", foreground="#b8860b", font=("Helvetica", 10))
-        self._chat.tag_config("inject_ok",  foreground="#2e7d32", font=("Helvetica", 10))
-        self._chat.tag_config("error_msg",  foreground="#cc0000", font=("Helvetica", 10))
-        self._chat.tag_config("system",     foreground="#555555", font=("Helvetica", 9, "italic"))
-        self._chat.tag_config("pending",    foreground="#555555", font=("Helvetica", 9, "italic"))
+        # ── 左侧标题（侦探） ──
+        tk.Label(panels, text="🔍 侦探", font=("Helvetica", 12, "bold"),
+                 fg="#1a5fa8").grid(row=0, column=0, sticky="w", padx=4)
+
+        # ── 右侧标题（嫌疑人） ──
+        tk.Label(panels, text="🎭 嫌疑人", font=("Helvetica", 12, "bold"),
+                 fg="#444").grid(row=0, column=1, sticky="w", padx=4)
+
+        # ── 对话历史区 ──
+        self._detective_chat = ScrolledText(panels, state=tk.DISABLED, wrap=tk.WORD,
+                                             font=("Helvetica", 10), height=10)
+        self._detective_chat.grid(row=1, column=0, sticky="nsew", padx=(0,2), pady=2)
+
+        self._suspect_chat = ScrolledText(panels, state=tk.DISABLED, wrap=tk.WORD,
+                                           font=("Helvetica", 10), height=10)
+        self._suspect_chat.grid(row=1, column=1, sticky="nsew", padx=(2,0), pady=2)
+
+        # ── 内心独白区（每轮刷新，只显示最新一条） ──
+        thought_frame_d = tk.LabelFrame(panels, text="💭 侦探内心", padx=4, pady=2)
+        thought_frame_d.grid(row=2, column=0, sticky="ew", padx=(0,2), pady=2)
+        self._detective_thought_var = tk.StringVar(value="—")
+        tk.Label(thought_frame_d, textvariable=self._detective_thought_var,
+                 fg="#888", wraplength=440, justify=tk.LEFT).pack(fill=tk.X)
+
+        thought_frame_s = tk.LabelFrame(panels, text="💭 嫌疑人内心", padx=4, pady=2)
+        thought_frame_s.grid(row=2, column=1, sticky="ew", padx=(2,0), pady=2)
+        self._suspect_thought_var = tk.StringVar(value="—")
+        tk.Label(thought_frame_s, textvariable=self._suspect_thought_var,
+                 fg="#888", wraplength=440, justify=tk.LEFT).pack(fill=tk.X)
+
+        # ── 结构化记忆区（跨回合累积） ──
+        memory_frame_d = tk.LabelFrame(panels, text="📋 掌握的嫌疑人说辞", padx=4, pady=2)
+        memory_frame_d.grid(row=3, column=0, sticky="nsew", padx=(0,2), pady=2)
+        self._detective_memory_text = ScrolledText(memory_frame_d, state=tk.DISABLED,
+                                                    wrap=tk.WORD, font=("Helvetica", 9), height=5)
+        self._detective_memory_text.pack(fill=tk.BOTH, expand=True)
+
+        memory_frame_s = tk.LabelFrame(panels, text="📋 我说过的话", padx=4, pady=2)
+        memory_frame_s.grid(row=3, column=1, sticky="nsew", padx=(2,0), pady=2)
+        self._suspect_memory_text = ScrolledText(memory_frame_s, state=tk.DISABLED,
+                                                  wrap=tk.WORD, font=("Helvetica", 9), height=5)
+        self._suspect_memory_text.pack(fill=tk.BOTH, expand=True)
+
+        # ── 矛盾信息区（横跨两栏） ──────────────────────────────────────
+        self._contradiction_text = ScrolledText(self._root, state=tk.DISABLED, wrap=tk.WORD,
+                                                 font=("Helvetica", 10), height=2, fg="#cc0000")
+        self._contradiction_text.pack(fill=tk.X, padx=10, pady=2)
 
         # ── 证据注入行 ──────────────────────────────────────────────────
         ev_frame = tk.Frame(self._root)
@@ -222,20 +258,28 @@ class InterrogationGUI:
 
         elif tag == "inject_ok":
             evidence_id, title = msg[1], msg[2]
-            self._append_text(f"[已注入证据：{evidence_id} {title}]\n", "inject_ok")
+            self._append_to_widget(
+                self._detective_chat,
+                f"[已注入证据：{evidence_id} {title}]\n"
+            )
             self._inject_btn.config(
                 state=tk.NORMAL if self._evidence_ids else tk.DISABLED
             )
 
         elif tag == "ended":
             result = msg[1]
-            self._append_text("\n══════ 审讯记录 ══════\n", "system")
-            self._append_text(result.transcript + "\n", "system")
+            self._append_to_widget(
+                self._contradiction_text,
+                "\n══════ 审讯记录 ══════\n" + result.transcript + "\n"
+            )
             self._set_buttons_disabled()
 
         elif tag == "error":
             self._remove_pending()
-            self._append_text(f"❌ 错误：{msg[1]}\n", "error_msg")
+            self._append_to_widget(
+                self._contradiction_text,
+                f"❌ 错误：{msg[1]}\n"
+            )
             # 恢复按钮，让用户能重试或结束
             if self._session_id:
                 self._next_btn.config(state=tk.NORMAL)
@@ -251,11 +295,17 @@ class InterrogationGUI:
             return
 
         if state.status == SessionStatus.HARD_LIMIT:
-            self._append_text("⛔ 已达到最大回合上限，审讯自动结束。\n", "soft_limit")
+            self._append_to_widget(
+                self._contradiction_text,
+                "⛔ 已达到最大回合上限，审讯自动结束。\n"
+            )
             self._auto_end("已达到最大回合上限")
         else:
             if state.status == SessionStatus.SOFT_LIMIT:
-                self._append_text("⚠️ 已接近回合上限，建议尽快结束审讯。\n", "soft_limit")
+                self._append_to_widget(
+                    self._contradiction_text,
+                    "⚠️ 已接近回合上限，建议尽快结束审讯。\n"
+                )
             self._next_btn.config(state=tk.NORMAL)
             self._end_btn.config(state=tk.NORMAL)
             self._inject_btn.config(
@@ -279,41 +329,72 @@ class InterrogationGUI:
         self._evidence_var.set(options[0])
         self._inject_btn.config(state=tk.NORMAL)
 
-    def _append_text(self, text: str, tag: str = "") -> None:
-        self._chat.config(state=tk.NORMAL)
-        if tag:
-            self._chat.insert(tk.END, text, tag)
-        else:
-            self._chat.insert(tk.END, text)
-        self._chat.config(state=tk.DISABLED)
-        self._chat.see(tk.END)
+    def _append_to_widget(self, widget: ScrolledText, text: str) -> None:
+        """向指定的 ScrolledText 追加文本。"""
+        widget.config(state=tk.NORMAL)
+        widget.insert(tk.END, text)
+        widget.config(state=tk.DISABLED)
+        widget.see(tk.END)
+
+    def _set_widget_text(self, widget: ScrolledText, text: str) -> None:
+        """替换指定 ScrolledText 的全部内容。"""
+        widget.config(state=tk.NORMAL)
+        widget.delete("1.0", tk.END)
+        widget.insert(tk.END, text)
+        widget.config(state=tk.DISABLED)
 
     def _append_pending(self, text: str) -> None:
-        """追加带 'pending' 标签的提示文本，供后续精准删除。"""
-        self._chat.config(state=tk.NORMAL)
-        self._chat.insert(tk.END, text, "pending")
-        self._chat.config(state=tk.DISABLED)
-        self._chat.see(tk.END)
+        """在侦探对话区追加待处理提示。"""
+        self._append_to_widget(self._detective_chat, text)
 
     def _remove_pending(self) -> None:
-        """删除对话区中所有带 'pending' 标签的内容（即 ⏳ 提示行）。"""
-        self._chat.config(state=tk.NORMAL)
-        ranges = self._chat.tag_ranges("pending")
-        # tag_ranges 返回 (start1, end1, start2, end2, ...) 扁平元组，倒序删除
-        for i in range(len(ranges) - 1, -1, -2):
-            self._chat.delete(ranges[i - 1], ranges[i])
-        self._chat.config(state=tk.DISABLED)
+        """清空侦探对话区的最后一行（待处理提示）。"""
+        self._detective_chat.config(state=tk.NORMAL)
+        # 删除最后一行（pending提示）
+        last_line_start = self._detective_chat.index("end-1c linestart")
+        self._detective_chat.delete(last_line_start, tk.END)
+        self._detective_chat.config(state=tk.DISABLED)
+
+    def _refresh_memory_panels(self) -> None:
+        """从 GameState 中读取 RoleMemory，刷新底部记忆区。"""
+        try:
+            state = self._controller.get_state(self._session_id)
+        except Exception:
+            return
+
+        # 侦探记忆面板
+        d_lines = list(state.detective_memory.recent_claims)
+        if state.detective_memory.strategy_notes:
+            d_lines.append(f"[策略] {state.detective_memory.strategy_notes[0]}")
+        self._set_widget_text(self._detective_memory_text, "\n".join(d_lines) or "暂无")
+
+        # 嫌疑人记忆面板
+        s_lines = list(state.suspect_memory.recent_claims)
+        if state.suspect_memory.summary:
+            s_lines.append(f"[状态] {state.suspect_memory.summary}")
+        self._set_widget_text(self._suspect_memory_text, "\n".join(s_lines) or "暂无")
 
     def _append_turn(self, turn, contradictions: list) -> None:
-        self._append_text(f"\n── 第 {turn.round_index} 回合 ──\n", "system")
-        if turn.detective_thought:
-            self._append_text(f"[侦探内心] {turn.detective_thought}\n", "thought")
-        self._append_text(f"侦探：{turn.detective_question}\n", "detective")
-        if turn.suspect_thought:
-            self._append_text(f"[嫌疑人内心] {turn.suspect_thought}\n", "thought")
-        self._append_text(f"嫌疑人：{turn.suspect_answer}\n", "suspect")
+        # 侦探对话区追加
+        self._append_to_widget(
+            self._detective_chat,
+            f"R{turn.round_index}: {turn.detective_question}\n"
+        )
+        # 嫌疑人对话区追加
+        self._append_to_widget(
+            self._suspect_chat,
+            f"R{turn.round_index}: {turn.suspect_answer}\n"
+        )
+        # 刷新内心独白（只显示最新一条）
+        self._detective_thought_var.set(turn.detective_thought or "—")
+        self._suspect_thought_var.set(turn.suspect_thought or "—")
+
+        # 矛盾信息追加
         for desc in contradictions:
-            self._append_text(f"⚠️ 矛盾：{desc}\n", "contradict")
+            self._append_to_widget(self._contradiction_text, f"⚠️ {desc}\n")
+
+        # 刷新结构化记忆区
+        self._refresh_memory_panels()
 
     def _set_buttons_disabled(self) -> None:
         self._next_btn.config(state=tk.DISABLED)
